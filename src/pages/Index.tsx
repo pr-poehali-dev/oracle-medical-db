@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { PatientDialog } from '@/components/PatientDialog';
+import { AppointmentDialog } from '@/components/AppointmentDialog';
+import { api } from '@/lib/api';
 import Icon from '@/components/ui/icon';
 import {
   Table,
@@ -13,31 +17,31 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
-const mockPatients = [
-  { id: 1, name: 'Иванов Иван Иванович', age: 45, phone: '+7 (999) 123-45-67', lastVisit: '15.12.2024', status: 'active' },
-  { id: 2, name: 'Петрова Мария Сергеевна', age: 32, phone: '+7 (999) 234-56-78', lastVisit: '20.12.2024', status: 'active' },
-  { id: 3, name: 'Сидоров Петр Алексеевич', age: 58, phone: '+7 (999) 345-67-89', lastVisit: '10.12.2024', status: 'inactive' },
-  { id: 4, name: 'Козлова Анна Дмитриевна', age: 28, phone: '+7 (999) 456-78-90', lastVisit: '22.12.2024', status: 'active' },
-];
-
-const mockAppointments = [
-  { id: 1, patient: 'Иванов Иван Иванович', doctor: 'Смирнов А.П.', date: '25.12.2024', time: '10:00', status: 'scheduled' },
-  { id: 2, patient: 'Петрова Мария Сергеевна', doctor: 'Кузнецова Е.В.', date: '25.12.2024', time: '11:30', status: 'scheduled' },
-  { id: 3, patient: 'Козлова Анна Дмитриевна', doctor: 'Попов В.И.', date: '25.12.2024', time: '14:00', status: 'completed' },
-  { id: 4, patient: 'Сидоров Петр Алексеевич', doctor: 'Смирнов А.П.', date: '26.12.2024', time: '09:00', status: 'scheduled' },
-];
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
-
-  const stats = [
-    { title: 'Пациентов', value: '1,247', icon: 'Users', trend: '+12%', color: 'text-blue-600' },
-    { title: 'Приёмов сегодня', value: '24', icon: 'Calendar', trend: '+5%', color: 'text-green-600' },
-    { title: 'Врачей', value: '18', icon: 'Stethoscope', trend: '+2', color: 'text-purple-600' },
-    { title: 'Отделений', value: '6', icon: 'Building2', trend: '0', color: 'text-orange-600' },
-  ];
+  const [stats, setStats] = useState({ patients: 0, todayAppointments: 0, doctors: 0, departments: 0 });
+  const [patients, setPatients] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [patientDialogOpen, setPatientDialogOpen] = useState(false);
+  const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ type: string; id: number } | null>(null);
+  const { toast } = useToast();
 
   const sections = [
     { id: 'dashboard', name: 'Главная', icon: 'LayoutDashboard' },
@@ -50,6 +54,105 @@ const Index = () => {
     { id: 'departments', name: 'Отделения', icon: 'Building2' },
   ];
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (activeSection === 'patients') {
+      loadPatients();
+    } else if (activeSection === 'appointments') {
+      loadAppointments();
+    }
+  }, [activeSection]);
+
+  const loadData = async () => {
+    try {
+      const [statsData, doctorsData] = await Promise.all([
+        api.getStats(),
+        api.getDoctors(),
+      ]);
+      setStats(statsData);
+      setDoctors(doctorsData);
+    } catch (error) {
+      toast({ title: 'Ошибка загрузки данных', variant: 'destructive' });
+    }
+  };
+
+  const loadPatients = async () => {
+    try {
+      const data = await api.getPatients(searchQuery);
+      setPatients(data);
+    } catch (error) {
+      toast({ title: 'Ошибка загрузки пациентов', variant: 'destructive' });
+    }
+  };
+
+  const loadAppointments = async () => {
+    try {
+      const data = await api.getAppointments();
+      setAppointments(data);
+    } catch (error) {
+      toast({ title: 'Ошибка загрузки приёмов', variant: 'destructive' });
+    }
+  };
+
+  const handleSavePatient = async (data: any) => {
+    try {
+      if (data.patient_id) {
+        await api.updatePatient(data);
+        toast({ title: 'Пациент обновлён' });
+      } else {
+        await api.createPatient(data);
+        toast({ title: 'Пациент добавлен' });
+      }
+      setPatientDialogOpen(false);
+      setSelectedPatient(null);
+      loadPatients();
+      loadData();
+    } catch (error) {
+      toast({ title: 'Ошибка сохранения', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveAppointment = async (data: any) => {
+    try {
+      if (data.appointment_id) {
+        await api.updateAppointment(data);
+        toast({ title: 'Приём обновлён' });
+      } else {
+        await api.createAppointment(data);
+        toast({ title: 'Приём создан' });
+      }
+      setAppointmentDialogOpen(false);
+      setSelectedAppointment(null);
+      loadAppointments();
+      loadData();
+    } catch (error) {
+      toast({ title: 'Ошибка сохранения', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!itemToDelete) return;
+    try {
+      if (itemToDelete.type === 'patient') {
+        await api.deletePatient(itemToDelete.id);
+        toast({ title: 'Пациент удалён' });
+        loadPatients();
+      } else if (itemToDelete.type === 'appointment') {
+        await api.deleteAppointment(itemToDelete.id);
+        toast({ title: 'Приём удалён' });
+        loadAppointments();
+      }
+      setDeleteDialogOpen(false);
+      setItemToDelete(null);
+      loadData();
+    } catch (error) {
+      toast({ title: 'Ошибка удаления', variant: 'destructive' });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       active: { label: 'Активен', variant: 'default' },
@@ -60,6 +163,36 @@ const Index = () => {
     };
     const config = variants[status] || { label: status, variant: 'outline' };
     return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const calculateAge = (birthDate: string) => {
+    if (!birthDate) return '-';
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU');
+  };
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleString('ru-RU', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -117,31 +250,70 @@ const Index = () => {
                     <h2 className="text-3xl font-bold tracking-tight">Панель управления</h2>
                     <p className="text-muted-foreground mt-1">Обзор ключевых метрик клиники</p>
                   </div>
-                  <Button className="gap-2">
+                  <Button 
+                    className="gap-2"
+                    onClick={() => {
+                      setSelectedAppointment(null);
+                      setAppointmentDialogOpen(true);
+                    }}
+                  >
                     <Icon name="Plus" size={18} />
                     Новый приём
                   </Button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {stats.map((stat, index) => (
-                    <Card key={index} className="hover:shadow-lg transition-shadow duration-200">
-                      <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                          {stat.title}
-                        </CardTitle>
-                        <div className={`p-2 rounded-lg bg-secondary ${stat.color}`}>
-                          <Icon name={stat.icon} size={20} />
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold">{stat.value}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {stat.trend} за месяц
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  <Card className="hover:shadow-lg transition-shadow duration-200">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Пациентов</CardTitle>
+                      <div className="p-2 rounded-lg bg-secondary text-blue-600">
+                        <Icon name="Users" size={20} />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold">{stats.patients}</div>
+                      <p className="text-xs text-muted-foreground mt-1">Всего в системе</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="hover:shadow-lg transition-shadow duration-200">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Приёмов сегодня</CardTitle>
+                      <div className="p-2 rounded-lg bg-secondary text-green-600">
+                        <Icon name="Calendar" size={20} />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold">{stats.todayAppointments}</div>
+                      <p className="text-xs text-muted-foreground mt-1">Запланировано</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="hover:shadow-lg transition-shadow duration-200">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Врачей</CardTitle>
+                      <div className="p-2 rounded-lg bg-secondary text-purple-600">
+                        <Icon name="Stethoscope" size={20} />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold">{stats.doctors}</div>
+                      <p className="text-xs text-muted-foreground mt-1">Активных специалистов</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="hover:shadow-lg transition-shadow duration-200">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Отделений</CardTitle>
+                      <div className="p-2 rounded-lg bg-secondary text-orange-600">
+                        <Icon name="Building2" size={20} />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold">{stats.departments}</div>
+                      <p className="text-xs text-muted-foreground mt-1">В клинике</p>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -149,20 +321,20 @@ const Index = () => {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Icon name="Calendar" size={20} />
-                        Приёмы на сегодня
+                        Последние приёмы
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {mockAppointments.slice(0, 3).map((appointment) => (
+                        {appointments.slice(0, 3).map((appointment) => (
                           <div
-                            key={appointment.id}
+                            key={appointment.appointment_id}
                             className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
                           >
                             <div className="flex-1">
-                              <p className="font-medium">{appointment.patient}</p>
+                              <p className="font-medium">{appointment.patient_name}</p>
                               <p className="text-sm text-muted-foreground">
-                                {appointment.doctor} • {appointment.time}
+                                {appointment.doctor_name} • {formatDateTime(appointment.appointment_date)}
                               </p>
                             </div>
                             {getStatusBadge(appointment.status)}
@@ -231,7 +403,13 @@ const Index = () => {
                     <h2 className="text-3xl font-bold tracking-tight">Пациенты</h2>
                     <p className="text-muted-foreground mt-1">Управление базой пациентов</p>
                   </div>
-                  <Button className="gap-2">
+                  <Button 
+                    className="gap-2"
+                    onClick={() => {
+                      setSelectedPatient(null);
+                      setPatientDialogOpen(true);
+                    }}
+                  >
                     <Icon name="UserPlus" size={18} />
                     Добавить пациента
                   </Button>
@@ -250,12 +428,15 @@ const Index = () => {
                           placeholder="Поиск по имени, телефону..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') loadPatients();
+                          }}
                           className="pl-10"
                         />
                       </div>
-                      <Button variant="outline" className="gap-2">
-                        <Icon name="Filter" size={18} />
-                        Фильтры
+                      <Button variant="outline" className="gap-2" onClick={loadPatients}>
+                        <Icon name="Search" size={18} />
+                        Найти
                       </Button>
                     </div>
                   </CardHeader>
@@ -266,26 +447,40 @@ const Index = () => {
                           <TableHead>ФИО</TableHead>
                           <TableHead>Возраст</TableHead>
                           <TableHead>Телефон</TableHead>
-                          <TableHead>Последний визит</TableHead>
-                          <TableHead>Статус</TableHead>
+                          <TableHead>Дата рождения</TableHead>
+                          <TableHead>Пол</TableHead>
                           <TableHead className="text-right">Действия</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {mockPatients.map((patient) => (
-                          <TableRow key={patient.id} className="hover:bg-secondary/50">
-                            <TableCell className="font-medium">{patient.name}</TableCell>
-                            <TableCell>{patient.age} лет</TableCell>
-                            <TableCell>{patient.phone}</TableCell>
-                            <TableCell>{patient.lastVisit}</TableCell>
-                            <TableCell>{getStatusBadge(patient.status)}</TableCell>
+                        {patients.map((patient) => (
+                          <TableRow key={patient.patient_id} className="hover:bg-secondary/50">
+                            <TableCell className="font-medium">{patient.full_name}</TableCell>
+                            <TableCell>{calculateAge(patient.birth_date)} лет</TableCell>
+                            <TableCell>{patient.phone || '-'}</TableCell>
+                            <TableCell>{formatDate(patient.birth_date)}</TableCell>
+                            <TableCell>{patient.gender || '-'}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="sm">
-                                  <Icon name="Eye" size={16} />
-                                </Button>
-                                <Button variant="ghost" size="sm">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedPatient(patient);
+                                    setPatientDialogOpen(true);
+                                  }}
+                                >
                                   <Icon name="Edit" size={16} />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setItemToDelete({ type: 'patient', id: patient.patient_id });
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                >
+                                  <Icon name="Trash2" size={16} />
                                 </Button>
                               </div>
                             </TableCell>
@@ -305,7 +500,13 @@ const Index = () => {
                     <h2 className="text-3xl font-bold tracking-tight">Приёмы</h2>
                     <p className="text-muted-foreground mt-1">Управление записями на приём</p>
                   </div>
-                  <Button className="gap-2">
+                  <Button 
+                    className="gap-2"
+                    onClick={() => {
+                      setSelectedAppointment(null);
+                      setAppointmentDialogOpen(true);
+                    }}
+                  >
                     <Icon name="Plus" size={18} />
                     Новый приём
                   </Button>
@@ -327,29 +528,38 @@ const Index = () => {
                             <TableRow>
                               <TableHead>Пациент</TableHead>
                               <TableHead>Врач</TableHead>
-                              <TableHead>Дата</TableHead>
-                              <TableHead>Время</TableHead>
+                              <TableHead>Дата и время</TableHead>
                               <TableHead>Статус</TableHead>
                               <TableHead className="text-right">Действия</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {mockAppointments.map((appointment) => (
-                              <TableRow key={appointment.id} className="hover:bg-secondary/50">
-                                <TableCell className="font-medium">{appointment.patient}</TableCell>
-                                <TableCell>{appointment.doctor}</TableCell>
-                                <TableCell>{appointment.date}</TableCell>
-                                <TableCell>{appointment.time}</TableCell>
+                            {appointments.map((appointment) => (
+                              <TableRow key={appointment.appointment_id} className="hover:bg-secondary/50">
+                                <TableCell className="font-medium">{appointment.patient_name}</TableCell>
+                                <TableCell>{appointment.doctor_name}</TableCell>
+                                <TableCell>{formatDateTime(appointment.appointment_date)}</TableCell>
                                 <TableCell>{getStatusBadge(appointment.status)}</TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex justify-end gap-2">
-                                    <Button variant="ghost" size="sm">
-                                      <Icon name="Eye" size={16} />
-                                    </Button>
-                                    <Button variant="ghost" size="sm">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedAppointment(appointment);
+                                        setAppointmentDialogOpen(true);
+                                      }}
+                                    >
                                       <Icon name="Edit" size={16} />
                                     </Button>
-                                    <Button variant="ghost" size="sm">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => {
+                                        setItemToDelete({ type: 'appointment', id: appointment.appointment_id });
+                                        setDeleteDialogOpen(true);
+                                      }}
+                                    >
                                       <Icon name="Trash2" size={16} />
                                     </Button>
                                   </div>
@@ -383,6 +593,37 @@ const Index = () => {
           </div>
         </div>
       </main>
+
+      <PatientDialog
+        open={patientDialogOpen}
+        onOpenChange={setPatientDialogOpen}
+        patient={selectedPatient}
+        onSave={handleSavePatient}
+      />
+
+      <AppointmentDialog
+        open={appointmentDialogOpen}
+        onOpenChange={setAppointmentDialogOpen}
+        appointment={selectedAppointment}
+        patients={patients}
+        doctors={doctors}
+        onSave={handleSaveAppointment}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтвердите удаление</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие нельзя отменить. Запись будет удалена безвозвратно.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Удалить</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

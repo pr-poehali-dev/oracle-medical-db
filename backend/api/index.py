@@ -15,6 +15,13 @@ def handler(event, context):
     method = event.get('httpMethod', 'GET')
     path = event.get('path', '/')
     query_params = event.get('queryStringParameters') or {}
+    body_data = {}
+    
+    if event.get('body'):
+        try:
+            body_data = json.loads(event.get('body'))
+        except:
+            pass
     
     if method == 'OPTIONS':
         return {
@@ -56,52 +63,108 @@ def handler(event, context):
             }
             
         elif endpoint == 'patients':
-            limit = int(query_params.get('limit', 100))
-            search = query_params.get('search', '')
-            
-            if search:
+            if method == 'GET':
+                limit = int(query_params.get('limit', 100))
+                search = query_params.get('search', '')
+                
+                if search:
+                    cur.execute(
+                        "SELECT patient_id, full_name, birth_date, gender, phone, passport_info, created_at FROM patients WHERE full_name ILIKE %s OR phone ILIKE %s ORDER BY created_at DESC LIMIT %s",
+                        (f'%{search}%', f'%{search}%', limit)
+                    )
+                else:
+                    cur.execute(
+                        "SELECT patient_id, full_name, birth_date, gender, phone, passport_info, created_at FROM patients ORDER BY created_at DESC LIMIT %s",
+                        (limit,)
+                    )
+                
+                patients = cur.fetchall()
+                result = [dict(p) for p in patients]
+                
+            elif method == 'POST':
                 cur.execute(
-                    "SELECT patient_id, full_name, birth_date, gender, phone, passport_info, created_at FROM patients WHERE full_name ILIKE %s OR phone ILIKE %s ORDER BY created_at DESC LIMIT %s",
-                    (f'%{search}%', f'%{search}%', limit)
+                    "INSERT INTO patients (full_name, birth_date, gender, phone, passport_info) VALUES (%s, %s, %s, %s, %s) RETURNING patient_id",
+                    (body_data.get('full_name'), body_data.get('birth_date'), body_data.get('gender'), body_data.get('phone'), body_data.get('passport_info'))
                 )
-            else:
+                patient_id = cur.fetchone()['patient_id']
+                conn.commit()
+                result = {'success': True, 'patient_id': patient_id}
+                
+            elif method == 'PUT':
+                patient_id = body_data.get('patient_id')
                 cur.execute(
-                    "SELECT patient_id, full_name, birth_date, gender, phone, passport_info, created_at FROM patients ORDER BY created_at DESC LIMIT %s",
-                    (limit,)
+                    "UPDATE patients SET full_name=%s, birth_date=%s, gender=%s, phone=%s, passport_info=%s WHERE patient_id=%s",
+                    (body_data.get('full_name'), body_data.get('birth_date'), body_data.get('gender'), body_data.get('phone'), body_data.get('passport_info'), patient_id)
                 )
-            
-            patients = cur.fetchall()
-            result = [dict(p) for p in patients]
+                conn.commit()
+                result = {'success': True}
+                
+            elif method == 'DELETE':
+                patient_id = query_params.get('id')
+                cur.execute("DELETE FROM appointments WHERE patient_id=%s", (patient_id,))
+                cur.execute("DELETE FROM medicalrecords WHERE patient_id=%s", (patient_id,))
+                cur.execute("DELETE FROM patients WHERE patient_id=%s", (patient_id,))
+                conn.commit()
+                result = {'success': True}
             
         elif endpoint == 'appointments':
-            limit = int(query_params.get('limit', 100))
-            status_filter = query_params.get('status')
-            
-            query = """
-                SELECT 
-                    a.appointment_id,
-                    a.appointment_date,
-                    a.status,
-                    p.full_name as patient_name,
-                    d.full_name as doctor_name,
-                    s.name as specialization
-                FROM appointments a
-                JOIN patients p ON a.patient_id = p.patient_id
-                JOIN doctors d ON a.doctor_id = d.doctor_id
-                LEFT JOIN specializations s ON d.specialization_id = s.specialization_id
-            """
-            
-            params = []
-            if status_filter:
-                query += " WHERE a.status = %s"
-                params.append(status_filter)
-            
-            query += " ORDER BY a.appointment_date DESC LIMIT %s"
-            params.append(limit)
-            
-            cur.execute(query, tuple(params))
-            appointments = cur.fetchall()
-            result = [dict(a) for a in appointments]
+            if method == 'GET':
+                limit = int(query_params.get('limit', 100))
+                status_filter = query_params.get('status')
+                
+                query = """
+                    SELECT 
+                        a.appointment_id,
+                        a.patient_id,
+                        a.doctor_id,
+                        a.appointment_date,
+                        a.status,
+                        p.full_name as patient_name,
+                        d.full_name as doctor_name,
+                        s.name as specialization
+                    FROM appointments a
+                    JOIN patients p ON a.patient_id = p.patient_id
+                    JOIN doctors d ON a.doctor_id = d.doctor_id
+                    LEFT JOIN specializations s ON d.specialization_id = s.specialization_id
+                """
+                
+                params = []
+                if status_filter:
+                    query += " WHERE a.status = %s"
+                    params.append(status_filter)
+                
+                query += " ORDER BY a.appointment_date DESC LIMIT %s"
+                params.append(limit)
+                
+                cur.execute(query, tuple(params))
+                appointments = cur.fetchall()
+                result = [dict(a) for a in appointments]
+                
+            elif method == 'POST':
+                cur.execute(
+                    "INSERT INTO appointments (patient_id, doctor_id, appointment_date, status) VALUES (%s, %s, %s, %s) RETURNING appointment_id",
+                    (body_data.get('patient_id'), body_data.get('doctor_id'), body_data.get('appointment_date'), body_data.get('status', 'scheduled'))
+                )
+                appointment_id = cur.fetchone()['appointment_id']
+                conn.commit()
+                result = {'success': True, 'appointment_id': appointment_id}
+                
+            elif method == 'PUT':
+                appointment_id = body_data.get('appointment_id')
+                cur.execute(
+                    "UPDATE appointments SET patient_id=%s, doctor_id=%s, appointment_date=%s, status=%s WHERE appointment_id=%s",
+                    (body_data.get('patient_id'), body_data.get('doctor_id'), body_data.get('appointment_date'), body_data.get('status'), appointment_id)
+                )
+                conn.commit()
+                result = {'success': True}
+                
+            elif method == 'DELETE':
+                appointment_id = query_params.get('id')
+                cur.execute("DELETE FROM appointmentservices WHERE appointment_id=%s", (appointment_id,))
+                cur.execute("DELETE FROM medicalrecords WHERE appointment_id=%s", (appointment_id,))
+                cur.execute("DELETE FROM appointments WHERE appointment_id=%s", (appointment_id,))
+                conn.commit()
+                result = {'success': True}
             
         elif endpoint == 'doctors':
             cur.execute("""
