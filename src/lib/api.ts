@@ -75,8 +75,63 @@ export const api = {
     return res.json();
   },
 
+  async createDoctor(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=doctors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async updateDoctor(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=doctors`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async deleteDoctor(id: number) {
+    const res = await fetch(`${API_URL}?endpoint=doctors&id=${id}`, {
+      method: 'DELETE',
+    });
+    return res.json();
+  },
+
+  async getSpecializations() {
+    const res = await fetch(`${API_URL}?endpoint=specializations`);
+    return res.json();
+  },
+
   async getDepartments() {
     const res = await fetch(`${API_URL}?endpoint=departments`);
+    return res.json();
+  },
+
+  async createDepartment(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=departments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async updateDepartment(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=departments`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async deleteDepartment(id: number) {
+    const res = await fetch(`${API_URL}?endpoint=departments&id=${id}`, {
+      method: 'DELETE',
+    });
     return res.json();
   },
 
@@ -85,8 +140,88 @@ export const api = {
     return res.json();
   },
 
+  async createService(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=services`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async updateService(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=services`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async deleteService(id: number) {
+    const res = await fetch(`${API_URL}?endpoint=services&id=${id}`, {
+      method: 'DELETE',
+    });
+    return res.json();
+  },
+
   async getDiagnoses() {
     const res = await fetch(`${API_URL}?endpoint=diagnoses`);
+    return res.json();
+  },
+
+  async createDiagnosis(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=diagnoses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async updateDiagnosis(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=diagnoses`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async deleteDiagnosis(id: number) {
+    const res = await fetch(`${API_URL}?endpoint=diagnoses&id=${id}`, {
+      method: 'DELETE',
+    });
+    return res.json();
+  },
+
+  async getRecords(limit = 100) {
+    const res = await fetch(`${API_URL}?endpoint=records&limit=${limit}`);
+    return res.json();
+  },
+
+  async createRecord(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=records`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async updateRecord(data: any) {
+    const res = await fetch(`${API_URL}?endpoint=records`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async deleteRecord(id: number) {
+    const res = await fetch(`${API_URL}?endpoint=records&id=${id}`, {
+      method: 'DELETE',
+    });
     return res.json();
   },
 };

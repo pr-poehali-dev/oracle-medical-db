@@ -7,6 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { PatientDialog } from '@/components/PatientDialog';
 import { AppointmentDialog } from '@/components/AppointmentDialog';
+import { DoctorDialog } from '@/components/DoctorDialog';
+import { ServiceDialog } from '@/components/ServiceDialog';
+import { DiagnosisDialog } from '@/components/DiagnosisDialog';
+import { DepartmentDialog } from '@/components/DepartmentDialog';
+import { RecordDialog } from '@/components/RecordDialog';
 import { api } from '@/lib/api';
 import Icon from '@/components/ui/icon';
 import {
@@ -35,10 +40,28 @@ const Index = () => {
   const [patients, setPatients] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [diagnoses, setDiagnoses] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [records, setRecords] = useState<any[]>([]);
+  const [specializations, setSpecializations] = useState<any[]>([]);
+  
   const [patientDialogOpen, setPatientDialogOpen] = useState(false);
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  const [doctorDialogOpen, setDoctorDialogOpen] = useState(false);
+  const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
+  const [diagnosisDialogOpen, setDiagnosisDialogOpen] = useState(false);
+  const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false);
+  const [recordDialogOpen, setRecordDialogOpen] = useState(false);
+  
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedDiagnosis, setSelectedDiagnosis] = useState<any>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<any>(null);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ type: string; id: number } | null>(null);
   const { toast } = useToast();
@@ -63,6 +86,16 @@ const Index = () => {
       loadPatients();
     } else if (activeSection === 'appointments') {
       loadAppointments();
+    } else if (activeSection === 'doctors') {
+      loadDoctors();
+    } else if (activeSection === 'services') {
+      loadServices();
+    } else if (activeSection === 'diagnoses') {
+      loadDiagnoses();
+    } else if (activeSection === 'departments') {
+      loadDepartments();
+    } else if (activeSection === 'records') {
+      loadRecords();
     }
   }, [activeSection]);
 
@@ -94,6 +127,52 @@ const Index = () => {
       setAppointments(data);
     } catch (error) {
       toast({ title: 'Ошибка загрузки приёмов', variant: 'destructive' });
+    }
+  };
+
+  const loadDoctors = async () => {
+    try {
+      const [doctorsData, specsData] = await Promise.all([api.getDoctors(), api.getSpecializations()]);
+      setDoctors(doctorsData);
+      setSpecializations(specsData);
+    } catch (error) {
+      toast({ title: 'Ошибка загрузки врачей', variant: 'destructive' });
+    }
+  };
+
+  const loadServices = async () => {
+    try {
+      const data = await api.getServices();
+      setServices(data);
+    } catch (error) {
+      toast({ title: 'Ошибка загрузки услуг', variant: 'destructive' });
+    }
+  };
+
+  const loadDiagnoses = async () => {
+    try {
+      const data = await api.getDiagnoses();
+      setDiagnoses(data);
+    } catch (error) {
+      toast({ title: 'Ошибка загрузки диагнозов', variant: 'destructive' });
+    }
+  };
+
+  const loadDepartments = async () => {
+    try {
+      const data = await api.getDepartments();
+      setDepartments(data);
+    } catch (error) {
+      toast({ title: 'Ошибка загрузки отделений', variant: 'destructive' });
+    }
+  };
+
+  const loadRecords = async () => {
+    try {
+      const data = await api.getRecords();
+      setRecords(data);
+    } catch (error) {
+      toast({ title: 'Ошибка загрузки медкарт', variant: 'destructive' });
     }
   };
 
@@ -133,6 +212,93 @@ const Index = () => {
     }
   };
 
+  const handleSaveDoctor = async (data: any) => {
+    try {
+      if (data.doctor_id) {
+        await api.updateDoctor(data);
+        toast({ title: 'Врач обновлён' });
+      } else {
+        await api.createDoctor(data);
+        toast({ title: 'Врач добавлен' });
+      }
+      setDoctorDialogOpen(false);
+      setSelectedDoctor(null);
+      loadDoctors();
+      loadData();
+    } catch (error) {
+      toast({ title: 'Ошибка сохранения', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveService = async (data: any) => {
+    try {
+      if (data.service_id) {
+        await api.updateService(data);
+        toast({ title: 'Услуга обновлена' });
+      } else {
+        await api.createService(data);
+        toast({ title: 'Услуга добавлена' });
+      }
+      setServiceDialogOpen(false);
+      setSelectedService(null);
+      loadServices();
+    } catch (error) {
+      toast({ title: 'Ошибка сохранения', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveDiagnosis = async (data: any) => {
+    try {
+      if (data.diagnoses_id) {
+        await api.updateDiagnosis(data);
+        toast({ title: 'Диагноз обновлён' });
+      } else {
+        await api.createDiagnosis(data);
+        toast({ title: 'Диагноз добавлен' });
+      }
+      setDiagnosisDialogOpen(false);
+      setSelectedDiagnosis(null);
+      loadDiagnoses();
+    } catch (error) {
+      toast({ title: 'Ошибка сохранения', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveDepartment = async (data: any) => {
+    try {
+      if (data.department_id) {
+        await api.updateDepartment(data);
+        toast({ title: 'Отделение обновлено' });
+      } else {
+        await api.createDepartment(data);
+        toast({ title: 'Отделение добавлено' });
+      }
+      setDepartmentDialogOpen(false);
+      setSelectedDepartment(null);
+      loadDepartments();
+      loadData();
+    } catch (error) {
+      toast({ title: 'Ошибка сохранения', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveRecord = async (data: any) => {
+    try {
+      if (data.record_id) {
+        await api.updateRecord(data);
+        toast({ title: 'Медкарта обновлена' });
+      } else {
+        await api.createRecord(data);
+        toast({ title: 'Медкарта создана' });
+      }
+      setRecordDialogOpen(false);
+      setSelectedRecord(null);
+      loadRecords();
+    } catch (error) {
+      toast({ title: 'Ошибка сохранения', variant: 'destructive' });
+    }
+  };
+
   const handleDelete = async () => {
     if (!itemToDelete) return;
     try {
@@ -144,6 +310,26 @@ const Index = () => {
         await api.deleteAppointment(itemToDelete.id);
         toast({ title: 'Приём удалён' });
         loadAppointments();
+      } else if (itemToDelete.type === 'doctor') {
+        await api.deleteDoctor(itemToDelete.id);
+        toast({ title: 'Врач удалён' });
+        loadDoctors();
+      } else if (itemToDelete.type === 'service') {
+        await api.deleteService(itemToDelete.id);
+        toast({ title: 'Услуга удалена' });
+        loadServices();
+      } else if (itemToDelete.type === 'diagnosis') {
+        await api.deleteDiagnosis(itemToDelete.id);
+        toast({ title: 'Диагноз удалён' });
+        loadDiagnoses();
+      } else if (itemToDelete.type === 'department') {
+        await api.deleteDepartment(itemToDelete.id);
+        toast({ title: 'Отделение удалено' });
+        loadDepartments();
+      } else if (itemToDelete.type === 'record') {
+        await api.deleteRecord(itemToDelete.id);
+        toast({ title: 'Медкарта удалена' });
+        loadRecords();
       }
       setDeleteDialogOpen(false);
       setItemToDelete(null);
@@ -575,20 +761,250 @@ const Index = () => {
               </>
             )}
 
-            {!['dashboard', 'patients', 'appointments'].includes(activeSection) && (
-              <Card className="p-12 text-center">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-                    <Icon name="Construction" size={32} className="text-muted-foreground" />
-                  </div>
+            {activeSection === 'doctors' && (
+              <>
+                <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-xl font-semibold">Раздел в разработке</h3>
-                    <p className="text-muted-foreground mt-2">
-                      Функционал раздела "{sections.find(s => s.id === activeSection)?.name}" скоро будет доступен
-                    </p>
+                    <h2 className="text-3xl font-bold tracking-tight">Врачи</h2>
+                    <p className="text-muted-foreground mt-1">Управление медицинским персоналом</p>
                   </div>
+                  <Button className="gap-2" onClick={() => { setSelectedDoctor(null); setDoctorDialogOpen(true); }}>
+                    <Icon name="UserPlus" size={18} />
+                    Добавить врача
+                  </Button>
                 </div>
-              </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ФИО</TableHead>
+                          <TableHead>Специализация</TableHead>
+                          <TableHead>Телефон</TableHead>
+                          <TableHead>Кабинет</TableHead>
+                          <TableHead className="text-right">Действия</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {doctors.map((doctor) => (
+                          <TableRow key={doctor.doctor_id} className="hover:bg-secondary/50">
+                            <TableCell className="font-medium">{doctor.full_name}</TableCell>
+                            <TableCell>{doctor.specialization || '-'}</TableCell>
+                            <TableCell>{doctor.phone || '-'}</TableCell>
+                            <TableCell>{doctor.office_number || '-'}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => { setSelectedDoctor(doctor); setDoctorDialogOpen(true); }}>
+                                  <Icon name="Edit" size={16} />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => { setItemToDelete({ type: 'doctor', id: doctor.doctor_id }); setDeleteDialogOpen(true); }}>
+                                  <Icon name="Trash2" size={16} />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {activeSection === 'services' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Услуги</h2>
+                    <p className="text-muted-foreground mt-1">Управление медицинскими услугами</p>
+                  </div>
+                  <Button className="gap-2" onClick={() => { setSelectedService(null); setServiceDialogOpen(true); }}>
+                    <Icon name="Plus" size={18} />
+                    Добавить услугу
+                  </Button>
+                </div>
+                <Card>
+                  <CardContent className="pt-6">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Название</TableHead>
+                          <TableHead>Цена</TableHead>
+                          <TableHead>Описание</TableHead>
+                          <TableHead className="text-right">Действия</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {services.map((service) => (
+                          <TableRow key={service.service_id} className="hover:bg-secondary/50">
+                            <TableCell className="font-medium">{service.name}</TableCell>
+                            <TableCell>{service.price} ₽</TableCell>
+                            <TableCell>{service.descriptions || '-'}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => { setSelectedService(service); setServiceDialogOpen(true); }}>
+                                  <Icon name="Edit" size={16} />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => { setItemToDelete({ type: 'service', id: service.service_id }); setDeleteDialogOpen(true); }}>
+                                  <Icon name="Trash2" size={16} />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {activeSection === 'diagnoses' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Диагнозы</h2>
+                    <p className="text-muted-foreground mt-1">Справочник диагнозов</p>
+                  </div>
+                  <Button className="gap-2" onClick={() => { setSelectedDiagnosis(null); setDiagnosisDialogOpen(true); }}>
+                    <Icon name="Plus" size={18} />
+                    Добавить диагноз
+                  </Button>
+                </div>
+                <Card>
+                  <CardContent className="pt-6">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Название</TableHead>
+                          <TableHead>Описание</TableHead>
+                          <TableHead>Примечания</TableHead>
+                          <TableHead className="text-right">Действия</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {diagnoses.map((diagnosis) => (
+                          <TableRow key={diagnosis.diagnoses_id} className="hover:bg-secondary/50">
+                            <TableCell className="font-medium">{diagnosis.name}</TableCell>
+                            <TableCell>{diagnosis.description || '-'}</TableCell>
+                            <TableCell>{diagnosis.notes || '-'}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => { setSelectedDiagnosis(diagnosis); setDiagnosisDialogOpen(true); }}>
+                                  <Icon name="Edit" size={16} />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => { setItemToDelete({ type: 'diagnosis', id: diagnosis.diagnoses_id }); setDeleteDialogOpen(true); }}>
+                                  <Icon name="Trash2" size={16} />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {activeSection === 'departments' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Отделения</h2>
+                    <p className="text-muted-foreground mt-1">Структура клиники</p>
+                  </div>
+                  <Button className="gap-2" onClick={() => { setSelectedDepartment(null); setDepartmentDialogOpen(true); }}>
+                    <Icon name="Plus" size={18} />
+                    Добавить отделение
+                  </Button>
+                </div>
+                <Card>
+                  <CardContent className="pt-6">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Название</TableHead>
+                          <TableHead>Заведующий</TableHead>
+                          <TableHead>Описание</TableHead>
+                          <TableHead className="text-right">Действия</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {departments.map((dept) => (
+                          <TableRow key={dept.department_id} className="hover:bg-secondary/50">
+                            <TableCell className="font-medium">{dept.name}</TableCell>
+                            <TableCell>{dept.head_doctor || '-'}</TableCell>
+                            <TableCell>{dept.description || '-'}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => { setSelectedDepartment(dept); setDepartmentDialogOpen(true); }}>
+                                  <Icon name="Edit" size={16} />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => { setItemToDelete({ type: 'department', id: dept.department_id }); setDeleteDialogOpen(true); }}>
+                                  <Icon name="Trash2" size={16} />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {activeSection === 'records' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Медицинские карты</h2>
+                    <p className="text-muted-foreground mt-1">История болезней пациентов</p>
+                  </div>
+                  <Button className="gap-2" onClick={() => { setSelectedRecord(null); setRecordDialogOpen(true); }}>
+                    <Icon name="Plus" size={18} />
+                    Создать запись
+                  </Button>
+                </div>
+                <Card>
+                  <CardContent className="pt-6">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Пациент</TableHead>
+                          <TableHead>Врач</TableHead>
+                          <TableHead>Диагноз</TableHead>
+                          <TableHead>Заметки</TableHead>
+                          <TableHead>Дата</TableHead>
+                          <TableHead className="text-right">Действия</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {records.map((record) => (
+                          <TableRow key={record.record_id} className="hover:bg-secondary/50">
+                            <TableCell className="font-medium">{record.patient_name}</TableCell>
+                            <TableCell>{record.doctor_name}</TableCell>
+                            <TableCell>{record.diagnosis_name || '-'}</TableCell>
+                            <TableCell className="max-w-xs truncate">{record.notes || '-'}</TableCell>
+                            <TableCell>{formatDate(record.created_at)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => { setSelectedRecord(record); setRecordDialogOpen(true); }}>
+                                  <Icon name="Edit" size={16} />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => { setItemToDelete({ type: 'record', id: record.record_id }); setDeleteDialogOpen(true); }}>
+                                  <Icon name="Trash2" size={16} />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
             )}
           </div>
         </div>
@@ -608,6 +1024,47 @@ const Index = () => {
         patients={patients}
         doctors={doctors}
         onSave={handleSaveAppointment}
+      />
+
+      <DoctorDialog
+        open={doctorDialogOpen}
+        onOpenChange={setDoctorDialogOpen}
+        doctor={selectedDoctor}
+        specializations={specializations}
+        onSave={handleSaveDoctor}
+      />
+
+      <ServiceDialog
+        open={serviceDialogOpen}
+        onOpenChange={setServiceDialogOpen}
+        service={selectedService}
+        onSave={handleSaveService}
+      />
+
+      <DiagnosisDialog
+        open={diagnosisDialogOpen}
+        onOpenChange={setDiagnosisDialogOpen}
+        diagnosis={selectedDiagnosis}
+        onSave={handleSaveDiagnosis}
+      />
+
+      <DepartmentDialog
+        open={departmentDialogOpen}
+        onOpenChange={setDepartmentDialogOpen}
+        department={selectedDepartment}
+        doctors={doctors}
+        onSave={handleSaveDepartment}
+      />
+
+      <RecordDialog
+        open={recordDialogOpen}
+        onOpenChange={setRecordDialogOpen}
+        record={selectedRecord}
+        patients={patients}
+        doctors={doctors}
+        appointments={appointments}
+        diagnoses={diagnoses}
+        onSave={handleSaveRecord}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
